@@ -10,6 +10,9 @@ pub struct CAD(i32);
 
 pub trait ToUSD {
     fn to_usd(&self) -> USD;
+    fn convert<T : FromUSD>(&self) -> T {
+        T::from_usd(&self.to_usd())
+    }
 }
 
 impl ToUSD for GBP {
