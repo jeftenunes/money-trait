@@ -8,29 +8,53 @@ pub struct GBP(i32);
 #[derive(PartialEq, Debug)]
 pub struct CAD(i32);
 
-pub trait ToUSD {
-    fn to_usd(&self) -> USD;
-    fn convert<T : FromUSD>(&self) -> T {
-        T::from_usd(&self.to_usd())
+pub trait FromUsd<T> {
+    fn from_value(&self, value: f32) -> T;
+}
+
+pub trait ToUsd<T> {
+    fn to_value(&self, value: T) -> f32;
+}
+
+pub struct Ex {
+    cad: f32,
+    gbp: f32
+}
+
+impl ToUsd<GBP> for Ex {
+    fn to_value(&self, value: GBP) -> f32 {
+        (value.0 as f32) * self.gbp
     }
 }
 
-impl ToUSD for GBP {
-    fn to_usd(&self) -> USD {
-        USD((self.0 * 130) / 100)
+impl ToUsd<CAD> for Ex {
+    fn to_value(&self, value: CAD) -> f32 {
+        (value.0 as f32) * self.cad
     }
 }
 
-pub trait FromUSD {
-    fn from_usd(u:&USD) -> Self;
-}
-
-impl FromUSD for CAD {
-    fn from_usd(u: &USD) -> Self {
-        CAD((u.0 * 130) / 100)
+impl FromUsd<CAD> for Ex {
+    fn from_value(&self, value: f32) -> CAD {
+        CAD((value / self.cad) as i32)
     }
 }
 
+impl FromUsd<GBP> for Ex {
+    fn from_value(&self, value: f32) -> GBP {
+        GBP((value / self.gbp) as i32)
+    } 
+}
+
+pub trait Exchange<E, T> {
+    fn convert(&self, from: E) -> T;
+}
+
+impl<E, F, T> Exchange<F, T> 
+    for E where E : ToUsd<F> + FromUsd<T> {
+    fn convert(&self, from: F) -> T {
+        self.from_value(self.to_value(from))
+    } 
+}
 
 #[cfg(test)]
 mod tests {
@@ -38,11 +62,12 @@ mod tests {
     #[test]
     fn it_works() {
         let gbp = GBP(200);
-        let usd = gbp.to_usd();
+        let exchange = Ex {
+            cad: 0.7,
+            gbp: 1.3
+        };
 
-        let cad = CAD::from_usd(&USD(10));
-
-        assert_eq!(usd, USD(260));
-        assert_eq!(cad, CAD(13));
+        let cad: CAD = exchange.convert(gbp);
+        assert_eq!(cad, CAD(371));
     }
 }
